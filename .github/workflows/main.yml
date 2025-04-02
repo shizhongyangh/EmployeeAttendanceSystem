@@ -1,40 +1,39 @@
-name: 推送文件到vercel分支
-
+name: 部署vercel
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]  # 监听的源分支
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # 必须的写入权限
+      contents: write
 
     steps:
-      - name: 1. 检出源码 🛎️
+      - name: 1. 检出源码
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整历史
+          fetch-depth: 0
 
-      - name: 2. 配置 Git 身份 ⚙️
+      - name: 2. 全量推送至Vercel分支
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
-      - name: 3. 强制推送所有文件 🚀
-        run: |
-          # 切换到新分支（自动处理分支存在与否）
-          git checkout --orphan vercel-temp
-          git rm -rf --quiet .  # 清理旧文件
+          mkdir -p /tmp/vercel-deploy
+          cd /tmp/vercel-deploy
           
-          # 添加所有文件（包括隐藏文件）
-          cp -r ../$(basename $GITHUB_REPOSITORY)/. .
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          git pull origin vercel --allow-unrelated-histories || true
+          find . -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
+          cp -r $GITHUB_WORKSPACE/. .
+          
           git add -A
-          
-          # 提交并强制推送
           git commit -m "Full push: ${{ github.sha }}"
-          git branch -M vercel  # 重命名为目标分支
+          git branch -M vercel
           git push origin vercel --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

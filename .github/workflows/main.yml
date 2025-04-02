@@ -1,4 +1,4 @@
-name: Full Deploy to Vercel
+name: Push All to Vercel Branch
 
 on:
   workflow_dispatch:
@@ -12,36 +12,21 @@ jobs:
       contents: write
 
     steps:
-      - name: 1. 检出源码
+      - name: 1. 检出源码 🛎️
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 2. 全量推送至Vercel分支
+      - name: 2. 配置 Git 身份 ⚙️
         run: |
-          # 创建工作目录
-          mkdir -p /tmp/vercel-deploy
-          cd /tmp/vercel-deploy
-          
-          # 初始化Git仓库并配置身份
-          git init --initial-branch=temp
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          
-          # 添加远程仓库
-          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-          
-          # 拉取或创建目标分支
-          git pull origin vercel --allow-unrelated-histories 2>/dev/null || echo "Branch vercel not exist, will create new"
-          
-          # 清理旧文件（保留.git目录）
-          find . -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
-          
-          # 复制所有文件（包含隐藏文件）
-          cp -r $GITHUB_WORKSPACE/. .
-          
-          # 提交并强制推送
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: 3. 强制推送所有文件到 Vercel 分支 🚀
+        run: |
+          # 切换到新分支（保留现有文件）
+          git checkout --orphan vercel
           git add -A
-          git commit -m "Full push: ${{ github.sha }}" --allow-empty
-          git branch -M vercel
+          git commit -m "Full push: ${{ github.sha }}"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git push origin vercel --force
